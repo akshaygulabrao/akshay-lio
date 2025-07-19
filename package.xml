@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>akshay_lio</name>
+  <version>0.0.0</version>
+  <description>Iteratively reproduces FAST-LIO</description>
+  <maintainer email="aksgula22@gmail.com">Akshay Gulabrao</maintainer>
+  <license>MIT</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+</package>
