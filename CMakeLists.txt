@@ -4,3 +4,5 @@ project(akshay_lio)
 find_package(catkin REQUIRED)
 
 catkin_package()
+
+add_executable(akshay_lio src/main.cpp)
