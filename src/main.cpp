@@ -30,7 +30,18 @@ bool sync_packages(MeasureGroup &meas){
 }
 
 
-void standard_pcl_cbk(const sensor_msgs::PointCloud2::ConstPtr &msg) {}
+void standard_pcl_cbk(const sensor_msgs::PointCloud2::ConstPtr &msg)
+{
+    std::cout << "[standard_pcl_cbk] Received PointCloud2 with "
+              << msg->width * msg->height << " points." << std::endl;
+}
+
+void imu_cbk(const sensor_msgs::Imu::ConstPtr &msg_in)
+{
+    std::cout << "[imu_cbk] Received IMU data at time "
+              << msg_in->header.stamp.toSec() << std::endl;
+}
+
 
 MeasureGroup Measures;
 
@@ -46,6 +57,7 @@ int main(int argc, char **argv) {
     //standard_pcl_cbk is the callback function (not a variable) that will be invoked 
     //for every sensor_msgs/PointCloud2 message arriving on lid_topic
     ros::Subscriber sub_pcl = nh.subscribe("/os_cloud_node/points",200000, standard_pcl_cbk);
+    ros::Subscriber sub_imu = nh.subscribe("/os_cloud_node/imu", 200000, imu_cbk);
 
     while (ros::ok()) {
         if(!sync_packages(Measures)) break;
