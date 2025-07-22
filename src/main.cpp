@@ -2,6 +2,8 @@
 #include "std_msgs/String.h"
 #include <sensor_msgs/PointCloud2.h>
 #include <sensor_msgs/Imu.h>
+#include <nav_msgs/Odometry.h>
+#include <nav_msgs/Path.h>
 #include <deque>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
@@ -42,6 +44,19 @@ void imu_cbk(const sensor_msgs::Imu::ConstPtr &msg_in)
               << msg_in->header.stamp.toSec() << std::endl;
 }
 
+struct MeasureGroup     // Lidar data and imu dates for the curent process
+{
+    MeasureGroup()
+    {
+        lidar_beg_time = 0.0;
+        this->lidar.reset(new PointCloudXYZI());
+    };
+    double lidar_beg_time;
+    double lidar_end_time;
+    PointCloudXYZI::Ptr lidar;
+    deque<sensor_msgs::Imu::ConstPtr> imu;
+};
+
 
 MeasureGroup Measures;
 
@@ -58,10 +73,40 @@ int main(int argc, char **argv) {
     //for every sensor_msgs/PointCloud2 message arriving on lid_topic
     ros::Subscriber sub_pcl = nh.subscribe("/os_cloud_node/points",200000, standard_pcl_cbk);
     ros::Subscriber sub_imu = nh.subscribe("/os_cloud_node/imu", 200000, imu_cbk);
+    ros::Publisher pubLaserCloudFull = nh.advertise<sensor_msgs::PointCloud2>
+            ("/cloud_registered", 100000);
+    ros::Publisher pubLaserCloudFull_body = nh.advertise<sensor_msgs::PointCloud2>
+            ("/cloud_registered_body", 100000);
+    ros::Publisher pubLaserCloudEffect = nh.advertise<sensor_msgs::PointCloud2>
+            ("/cloud_effected", 100000);
+    ros::Publisher pubLaserCloudMap = nh.advertise<sensor_msgs::PointCloud2>
+            ("/Laser_map", 100000);
+    ros::Publisher pubOdomAftMapped = nh.advertise<nav_msgs::Odometry> 
+            ("/Odometry", 100000);
+    ros::Publisher pubPath          = nh.advertise<nav_msgs::Path> 
+            ("/path", 100000);
 
     while (ros::ok()) {
-        if(!sync_packages(Measures)) break;
+        if(sync_packages(Measures)){
+            if (flg_first_scan){
 
+            }
+            if (feats_undistort->empty() || (feats_undistort == NULL))
+            {
+
+            }
+            if(ikdtree.Root_Node == nullptr)
+            {
+
+            }
+            if (feats_down_size < 5)
+            {
+            }
+            if (runtime_pos_log)
+            {
+                
+            }
+        }
         ros::spinOnce();
         loop_rate.sleep();
     }
