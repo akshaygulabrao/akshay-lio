@@ -3,8 +3,17 @@
 #define RETURN0     0x00
 #define RETURN0AND1 0x10
 
-void oust64_handler(const sensor_msgs::PointCloud2::ConstPtr &msg)
+void Preprocess::oust64_handler(const sensor_msgs::PointCloud2::ConstPtr &msg)
 {
+  pl_surf.clear();
+  pl_corn.clear();
+  pl_full.clear();
+
+  pcl::PointCloud<ouster_ros::Point> pl_orig;
+  pcl::fromROSMsg(*msg, pl_orig);
+  int plsize = pl_orig.size();
+  pl_corn.reserve(plsize);
+  pl_surf.reserve(plsize);
 
 }
 
@@ -57,5 +66,6 @@ void Preprocess::process(const sensor_msgs::PointCloud2::ConstPtr &msg, PointClo
     printf("Error LiDAR Type");
     break;
   }
+  *pcl_out = pl_surf;
 
 }
