@@ -123,7 +123,9 @@ int main(int argc, char **argv) {
     ros::init(argc, argv, "talker");
     // creates a handle whose namespace is the node's private namespace
     ros::NodeHandle nh;
-    nh.param<int>("preprocess/timestamp_unit", p_pre->time_unit, US);    
+    nh.param<int>("preprocess/timestamp_unit", p_pre->time_unit, US);
+    nh.param<int>("preprocess/lidar_type", p_pre->lidar_type, OUST64);
+
     ros::Rate loop_rate(500);
 
     //standard_pcl_cbk is the callback function (not a variable) that will be invoked 
