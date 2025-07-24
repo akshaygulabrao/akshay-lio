@@ -1,3 +1,4 @@
+#include <omp.h>
 #include "ros/ros.h"
 #include "std_msgs/String.h"
 #include <sensor_msgs/PointCloud2.h>
@@ -5,43 +6,86 @@
 #include <nav_msgs/Odometry.h>
 #include <nav_msgs/Path.h>
 #include <deque>
+#include <mutex>
+#include <condition_variable>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/io/pcd_io.h>
 
+#define MAXN                (720000)
+
 typedef pcl::PointXYZINormal PointType;
 typedef pcl::PointCloud<PointType> PointCloudXYZI;
 
-struct MeasureGroup     // Lidar data and imu dates for the curent process
-{
-    MeasureGroup()
-    {
-        lidar_beg_time = 0.0;
-        lidar_last_time = 0.0;
-        this->lidar.reset(new PointCloudXYZI());
-    };
-    double lidar_beg_time;
-    double lidar_last_time;
-    PointCloudXYZI::Ptr lidar;
-    std::deque<sensor_msgs::Imu::ConstPtr> imu;
-};
+std::mutex mtx_buffer;
+std::condition_variable sig_buffer;
 
-bool sync_packages(MeasureGroup &meas){
-    return true;
-}
+int scan_count = 0;
+std::shared_ptr<Preprocess> p_pre(new Preprocess());
 
+double T1[MAXN], s_plot[MAXN], s_plot2[MAXN], s_plot3[MAXN], s_plot4[MAXN], \
+s_plot5[MAXN], s_plot6[MAXN], s_plot7[MAXN], s_plot8[MAXN], s_plot9[MAXN], \
+s_plot10[MAXN], s_plot11[MAXN];
+
+double last_timestamp_lidar;
+std::deque<PointCloudXYZI::Ptr> lidar_buffer;
+std::deque<double> time_buffer;
 
 void standard_pcl_cbk(const sensor_msgs::PointCloud2::ConstPtr &msg)
 {
-    std::cout << "[standard_pcl_cbk] Received PointCloud2 with "
-              << msg->width * msg->height << " points." << std::endl;
+    mtx_buffer.lock();
+    double preprocess_start_time = omp_get_wtime();
+    scan_count++;
+    if(msg->header.stamp.toSec() < last_timestamp_lidar)
+    {
+        lidar_buffer.clear();
+    }
+
+    PointCloudXYZI::Ptr ptr(new PointCloudXYZI());
+    p_pre->process(msg,ptr);
+    lidar_buffer.push_back(ptr);
+    time_buffer.push_back(msg->header.stamp.toSec());
+    s_plot11[scan_count] = omp_get_wtime() - preprocess_start_time;
+
+    mtx_buffer.unlock();
+    sig_buffer.notify_all();
+    
 }
 
+int publish_count = 0;
+double time_diff_lidar_to_imu = 0.0;
+double timediff_lidar_wrt_imu = 0.0;
+bool time_sync_en = false;
+double last_timestamp_imu = -1.0;
+std::deque<sensor_msgs::Imu::ConstPtr> imu_buffer;
 void imu_cbk(const sensor_msgs::Imu::ConstPtr &msg_in)
 {
+    publish_count++;
     std::cout << "[imu_cbk] Received IMU data at time "
               << msg_in->header.stamp.toSec() << std::endl;
+    sensor_msgs::Imu::Ptr msg(new sensor_msgs::Imu(*msg_in));
+
+    msg->header.stamp = ros::Time().fromSec(msg_in->header.stamp.toSec() - time_diff_lidar_to_imu);
+    if (abs(timediff_lidar_wrt_imu) > 0.1 && time_sync_en)
+    {
+        msg->header.stamp = ros::Time().fromSec(timediff_lidar_wrt_imu + msg_in->header.stamp.toSec());
+    }
+
+    double timestamp = msg->header.stamp.toSec();
+    mtx_buffer.lock();
+
+    if(timestamp < last_timestamp_imu)
+    {
+        ROS_WARN("imu loop back, clear buffer");
+        imu_buffer.clear();
+    }
+    
+    last_timestamp_imu = timestamp;
+    imu_buffer.push_back(msg);  
+
+    mtx_buffer.unlock();
+    sig_buffer.notify_all();
 }
 
 struct MeasureGroup     // Lidar data and imu dates for the curent process
@@ -54,11 +98,23 @@ struct MeasureGroup     // Lidar data and imu dates for the curent process
     double lidar_beg_time;
     double lidar_end_time;
     PointCloudXYZI::Ptr lidar;
-    deque<sensor_msgs::Imu::ConstPtr> imu;
+    std::deque<sensor_msgs::Imu::ConstPtr> imu;
+    
 };
 
-
 MeasureGroup Measures;
+
+bool sync_packages(MeasureGroup &meas){
+    if (lidar_buffer.empty() || imu_buffer.empty()){
+        return false;
+    }
+
+    return true;
+}
+
+
+
+
 
 int main(int argc, char **argv) {
     // registers this process as a ROS Node with the master
@@ -87,26 +143,6 @@ int main(int argc, char **argv) {
             ("/path", 100000);
 
     while (ros::ok()) {
-        if(sync_packages(Measures)){
-            if (flg_first_scan){
-
-            }
-            if (feats_undistort->empty() || (feats_undistort == NULL))
-            {
-
-            }
-            if(ikdtree.Root_Node == nullptr)
-            {
-
-            }
-            if (feats_down_size < 5)
-            {
-            }
-            if (runtime_pos_log)
-            {
-                
-            }
-        }
         ros::spinOnce();
         loop_rate.sleep();
     }
