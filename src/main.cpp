@@ -13,6 +13,8 @@
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/io/pcd_io.h>
 
+#include "preprocess.h"
+
 #define MAXN                (720000)
 
 typedef pcl::PointXYZINormal PointType;
@@ -121,12 +123,10 @@ int main(int argc, char **argv) {
     ros::init(argc, argv, "talker");
     // creates a handle whose namespace is the node's private namespace
     ros::NodeHandle nh;
-    // starts an internal thread pool so that subscription/service callbacks are executed in the bg
-    ros::AsyncSpinner spinner(0);
-      
+    nh.param<int>("preprocess/timestamp_unit", p_pre->time_unit, US);    
     ros::Rate loop_rate(500);
+
     //standard_pcl_cbk is the callback function (not a variable) that will be invoked 
-    //for every sensor_msgs/PointCloud2 message arriving on lid_topic
     ros::Subscriber sub_pcl = nh.subscribe("/os_cloud_node/points",200000, standard_pcl_cbk);
     ros::Subscriber sub_imu = nh.subscribe("/os_cloud_node/imu", 200000, imu_cbk);
     ros::Publisher pubLaserCloudFull = nh.advertise<sensor_msgs::PointCloud2>
